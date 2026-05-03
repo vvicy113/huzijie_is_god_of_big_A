@@ -86,7 +86,6 @@ public class DatabaseManager {
     public static void setBulkImportMode(Connection conn) {
         try {
             conn.prepareStatement("PRAGMA synchronous=OFF").execute();
-            conn.prepareStatement("PRAGMA journal_mode=OFF").execute();
             conn.prepareStatement("PRAGMA cache_size=1000000").execute();
         } catch (SQLException e) {
             throw new RuntimeException("设置导入模式失败", e);
@@ -96,7 +95,6 @@ public class DatabaseManager {
     public static void setNormalMode(Connection conn) {
         try {
             conn.prepareStatement("PRAGMA synchronous=NORMAL").execute();
-            conn.prepareStatement("PRAGMA journal_mode=WAL").execute();
             conn.prepareStatement("PRAGMA cache_size=-2000").execute();
             conn.prepareStatement("PRAGMA optimize").execute();
         } catch (SQLException e) {

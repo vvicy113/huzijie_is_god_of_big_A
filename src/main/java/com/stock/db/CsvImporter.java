@@ -92,8 +92,8 @@ public class CsvImporter {
         Connection conn = null;
         try {
             conn = dbManager.getConnection();
-            conn.setAutoCommit(false);
             DatabaseManager.setBulkImportMode(conn);
+            conn.setAutoCommit(false);
 
             String sql = "INSERT OR IGNORE INTO daily_kline " +
                          "(stock_code, date, open, high, low, close, volume, amount) " +
@@ -139,6 +139,7 @@ public class CsvImporter {
             throw new RuntimeException("数据库写入失败", e);
         } finally {
             if (conn != null) {
+                try { conn.setAutoCommit(true); } catch (SQLException ignored) {}
                 DatabaseManager.setNormalMode(conn);
                 try { conn.close(); } catch (SQLException ignored) {}
             }
