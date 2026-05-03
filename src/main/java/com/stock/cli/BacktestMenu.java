@@ -8,10 +8,15 @@ import com.stock.backtest.strategy.StrategyRegistry;
 import com.stock.model.BacktestResult;
 import com.stock.model.KLine;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Scanner;
 
 public class BacktestMenu {
+
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final Scanner scanner;
     private final CsvDataLoader loader;
@@ -38,10 +43,32 @@ public class BacktestMenu {
             return;
         }
 
+        // 回测日期范围
+        LocalDate from = null;
+        LocalDate to = null;
+        System.out.print("  起始日期（yyyy-MM-dd，留空=全部）: ");
+        String fromStr = scanner.nextLine().trim();
+        if (!fromStr.isEmpty()) {
+            try {
+                from = LocalDate.parse(fromStr, DATE_FMT);
+            } catch (DateTimeParseException e) {
+                System.out.println("  日期格式无效，将使用全部数据。");
+            }
+        }
+        System.out.print("  结束日期（yyyy-MM-dd，留空=全部）: ");
+        String toStr = scanner.nextLine().trim();
+        if (!toStr.isEmpty()) {
+            try {
+                to = LocalDate.parse(toStr, DATE_FMT);
+            } catch (DateTimeParseException e) {
+                System.out.println("  日期格式无效，将使用全部数据。");
+            }
+        }
+
         // 从数据库加载日K线
         List<KLine> klineData;
         try {
-            klineData = loader.loadDailyKLine(stockCode);
+            klineData = loader.loadDailyKLine(stockCode, from, to);
             System.out.println("  成功加载 " + klineData.size() + " 条日K线数据。");
         } catch (Exception e) {
             System.out.println("  加载失败: " + e.getMessage());

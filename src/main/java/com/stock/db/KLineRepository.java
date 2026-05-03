@@ -25,13 +25,27 @@ public class KLineRepository {
      * 按股票代码查询全部日K线，按日期升序排列。
      */
     public List<KLine> findByStockCode(String stockCode) {
+        return findByStockCode(stockCode, null, null);
+    }
+
+    /**
+     * 按股票代码 + 日期范围查询日K线。from/to 为 null 表示不限制。
+     */
+    public List<KLine> findByStockCode(String stockCode, LocalDate from, LocalDate to) {
         List<KLine> result = new ArrayList<>();
-        String sql = "SELECT date, open, high, low, close, volume, amount " +
-                     "FROM daily_kline WHERE stock_code = ? ORDER BY date ASC";
+        StringBuilder sql = new StringBuilder(
+                "SELECT date, open, high, low, close, volume, amount " +
+                "FROM daily_kline WHERE stock_code = ?");
+        if (from != null) sql.append(" AND date >= ?");
+        if (to != null) sql.append(" AND date <= ?");
+        sql.append(" ORDER BY date ASC");
 
         try (Connection conn = db.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, stockCode);
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            int idx = 1;
+            ps.setString(idx++, stockCode);
+            if (from != null) ps.setString(idx++, from.toString());
+            if (to != null) ps.setString(idx++, to.toString());
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     result.add(rowToKLine(rs));
