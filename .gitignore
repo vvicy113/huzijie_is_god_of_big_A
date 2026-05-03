@@ -133,3 +133,7 @@ docker-compose.override.yml
 
 # csv文件
 *.csv
+
+
+# db文件
+*.db
