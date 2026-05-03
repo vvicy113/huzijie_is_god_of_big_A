@@ -82,7 +82,6 @@ public class CsvImporter {
 
         // 4. 执行导入
         System.out.println("  开始导入...");
-        dbManager.setBulkImportMode();
 
         int totalFiles = filtered.size();
         int successFiles = 0;
@@ -90,8 +89,11 @@ public class CsvImporter {
         long totalRows = 0;
         long startTime = System.currentTimeMillis();
 
-        try (Connection conn = dbManager.getConnection()) {
+        Connection conn = null;
+        try {
+            conn = dbManager.getConnection();
             conn.setAutoCommit(false);
+            DatabaseManager.setBulkImportMode(conn);
 
             String sql = "INSERT OR IGNORE INTO daily_kline " +
                          "(stock_code, date, open, high, low, close, volume, amount) " +
@@ -136,7 +138,10 @@ public class CsvImporter {
         } catch (SQLException e) {
             throw new RuntimeException("数据库写入失败", e);
         } finally {
-            dbManager.setNormalMode();
+            if (conn != null) {
+                DatabaseManager.setNormalMode(conn);
+                try { conn.close(); } catch (SQLException ignored) {}
+            }
         }
 
         long elapsed = (System.currentTimeMillis() - startTime) / 1000;
