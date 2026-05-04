@@ -7,11 +7,7 @@ public class StrategyRegistry {
     private static final Map<String, Strategy> strategies = new LinkedHashMap<>();
 
     static {
-        register(new MovingAverageCrossStrategy(5, 20));
-        register(new MovingAverageCrossStrategy(10, 30));
-        register(new GoldenCrossStrategy());
-        register(new BreakoutStrategy(20));
-        register(new BreakoutStrategy(60));
+        // 待注册短线策略
     }
 
     public static void register(Strategy strategy) {

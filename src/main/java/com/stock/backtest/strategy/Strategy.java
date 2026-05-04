@@ -3,38 +3,49 @@ package com.stock.backtest.strategy;
 import com.stock.model.KLine;
 import com.stock.model.Position;
 import com.stock.model.TradeAction;
+import com.stock.selector.StockSelector;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
- * 交易策略接口。
+ * 短线交易策略接口。
  * <p>
- * 回测引擎逐日遍历K线数据，每到一个交易日调用 {@link #evaluate} 获取交易信号，
- * 根据返回的 BUY / SELL / HOLD 执行模拟买卖。
- * <p>
- * 新增策略只需实现此接口的三个方法，然后在 {@link StrategyRegistry} 的 static 块中注册即可。
+ * 每个策略自带选股器和评估逻辑：
+ * <ol>
+ *   <li>{@link #getStockSelector()} — 每日开盘前从全市场筛选候选池</li>
+ *   <li>{@link #evaluate} — 对候选池逐只评估，往 SignalBoard 填入 BUY/SELL/HOLD + 分数</li>
+ * </ol>
+ * Engine 从 SignalBoard 按分数降序读取信号执行交易。
  */
 public interface Strategy {
 
-    /**
-     * 返回策略名称，用于菜单展示和回测报告。
-     * 例如 "均线交叉(5,20)"、"MACD金叉死叉(12,26,9)"。
-     */
+    /** 返回策略名称 */
     String getName();
 
-    /**
-     * 评估当前交易日应执行的交易动作。
-     *
-     * @param currentIndex   当前K线在历史列表中的索引（从0开始）
-     * @param history        该股票的全部历史日K线数据（按日期升序），长度 &gt; currentIndex
-     * @param currentPosition 当前持仓状态，{@link Position#isHolding()} 判断是否持仓
-     * @return BUY（买入信号） / SELL（卖出信号） / HOLD（不操作）
-     */
-    TradeAction evaluate(int currentIndex, List<KLine> history, Position currentPosition);
+    /** 返回该策略的选股器 */
+    StockSelector getStockSelector();
 
     /**
-     * 策略重置回调。每次回测开始前调用，用于清理策略内部状态（如技术指标缓存）。
-     * 默认空实现。
+     * 对当日候选池逐只评估，生成交易信号。
+     *
+     * @param candidates     选股器过滤后的候选股票代码列表
+     * @param klineMap       每只候选股票的历史日K线（按日期升序）
+     * @param positions      当前持仓，key=stockCode
+     * @param availableCash  当前可用资金
+     * @param date           当前交易日
+     * @param signalBoard    信号板，策略往这里添加 {@link com.stock.model.TradeSignal}
      */
+    void evaluate(
+            List<String> candidates,
+            Map<String, List<KLine>> klineMap,
+            Map<String, Position> positions,
+            double availableCash,
+            LocalDate date,
+            SignalBoard signalBoard
+    );
+
+    /** 策略重置回调。每次回测开始前调用 */
     default void onReset() {}
 }
