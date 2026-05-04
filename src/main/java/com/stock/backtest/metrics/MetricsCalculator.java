@@ -10,12 +10,11 @@ import java.util.List;
 
 public class MetricsCalculator {
 
-    private static final double RISK_FREE_RATE = 0.02;
-
     public static PerformanceMetrics calculate(
             double initialCapital, double finalCapital,
             List<TradeRecord> trades,
-            List<Double> equityCurve, List<LocalDate> dates) {
+            List<Double> equityCurve, List<LocalDate> dates,
+            double riskFreeRate) {
 
         double totalReturn = (finalCapital - initialCapital) / initialCapital * 100;
 
@@ -25,7 +24,7 @@ public class MetricsCalculator {
         double annualizedReturn = (Math.pow(1 + totalReturn / 100, 1.0 / years) - 1) * 100;
 
         double maxDrawdown = calculateMaxDrawdown(equityCurve);
-        double sharpeRatio = calculateSharpeRatio(equityCurve, dates);
+        double sharpeRatio = calculateSharpeRatio(equityCurve, dates, riskFreeRate);
 
         int winningTrades = 0, losingTrades = 0;
         double totalWins = 0, totalLosses = 0;
@@ -80,7 +79,7 @@ public class MetricsCalculator {
     }
 
     private static double calculateSharpeRatio(List<Double> equityCurve,
-                                                List<LocalDate> dates) {
+                                                List<LocalDate> dates, double riskFreeRate) {
         List<Double> dailyReturns = new ArrayList<>();
         for (int i = 1; i < equityCurve.size(); i++) {
             double prev = equityCurve.get(i - 1);
@@ -98,7 +97,7 @@ public class MetricsCalculator {
 
         if (stdDev == 0) return 0;
 
-        double dailyRiskFree = RISK_FREE_RATE / 252;
+        double dailyRiskFree = riskFreeRate / 252;
         return (meanReturn - dailyRiskFree) / stdDev * Math.sqrt(252);
     }
 }

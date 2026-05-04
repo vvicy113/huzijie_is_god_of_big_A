@@ -6,6 +6,7 @@ import com.stock.backtest.executor.TradeExecutor;
 import com.stock.backtest.loader.CsvDataLoader;
 import com.stock.backtest.metrics.MetricsCalculator;
 import com.stock.backtest.strategy.*;
+import com.stock.config.BacktestConfig;
 import com.stock.db.KLineRepository;
 import com.stock.model.*;
 
@@ -24,12 +25,21 @@ public class BacktestEngine {
     private final CsvDataLoader loader;
     private final KLineRepository repo;
     private final TradeExecutor executor;
+    private final BacktestConfig config;
 
     public BacktestEngine() {
-        this(new EqualSplitExecutor(5, 1.0));
+        this(BacktestConfig.defaults());
     }
 
-    public BacktestEngine(TradeExecutor executor) {
+    public BacktestEngine(BacktestConfig config) {
+        this.config = config;
+        this.loader = new CsvDataLoader();
+        this.repo = new KLineRepository();
+        this.executor = new EqualSplitExecutor(config);
+    }
+
+    public BacktestEngine(BacktestConfig config, TradeExecutor executor) {
+        this.config = config;
         this.loader = new CsvDataLoader();
         this.repo = new KLineRepository();
         this.executor = executor;
@@ -39,7 +49,7 @@ public class BacktestEngine {
         backtest(strategy, from, to, true);
     }
 
-    public BacktestResult run(Strategy strategy, LocalDate from, LocalDate to, double initialCapital) {
+    public BacktestResult run(Strategy strategy, LocalDate from, LocalDate to) {
         return backtest(strategy, from, to, false);
     }
 
@@ -52,8 +62,7 @@ public class BacktestEngine {
             return null;
         }
 
-        double initialCapital = 100_000;
-        DoubleRef cash = new DoubleRef(initialCapital);
+        DoubleRef cash = new DoubleRef(config.initialCapital());
         Map<String, Position> positions = new HashMap<>();
         List<TradeRecord> allTrades = new ArrayList<>();
         List<Double> equityValues = new ArrayList<>();
@@ -146,7 +155,7 @@ public class BacktestEngine {
         System.out.printf("%n  最终资金: %.0f  交易次数: %d  持仓: %d%n",
                 cash.get(), allTrades.size(), positions.size());
 
-        MetricsCalculator.calculate(initialCapital, cash.get(), allTrades, equityValues, equityDates);
+        MetricsCalculator.calculate(config.initialCapital(), cash.get(), allTrades, equityValues, equityDates, config.riskFreeRate());
         return null; // TODO: 返回完整 BacktestResult
     }
 
