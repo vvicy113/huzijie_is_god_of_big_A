@@ -1,14 +1,16 @@
 package com.stock.backtest.strategy;
 
+import com.stock.comparator.StockComparator;
 import com.stock.selector.StockSelector;
 
 /**
  * 短线交易策略接口。
  * <p>
- * 每个策略自带选股器和评估逻辑：
+ * 每个策略自带选股器、打分器和评估逻辑：
  * <ol>
  *   <li>{@link #getStockSelector()} — 每日开盘前从全市场筛选候选池</li>
- *   <li>{@link #evaluate} — 对候选池逐只评估，往 SignalBoard 填入 BUY/SELL/HOLD + 分数</li>
+ *   <li>{@link #getComparator()} — 对候选池批量打分排序</li>
+ *   <li>{@link #evaluate} — 逐只评估，往 SignalBoard 填入 BUY/SELL/HOLD + 分数</li>
  * </ol>
  * Engine 从 SignalBoard 按分数降序读取信号执行交易。
  */
@@ -19,6 +21,9 @@ public interface Strategy {
 
     /** 返回该策略的选股器 */
     StockSelector getStockSelector();
+
+    /** 返回该策略的打分器 */
+    StockComparator getComparator();
 
     /**
      * 对当日候选池逐只评估，生成交易信号。
