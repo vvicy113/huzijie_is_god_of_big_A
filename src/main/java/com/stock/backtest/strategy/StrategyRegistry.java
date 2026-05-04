@@ -7,7 +7,7 @@ public class StrategyRegistry {
     private static final Map<String, Strategy> strategies = new LinkedHashMap<>();
 
     static {
-        // 待注册短线策略
+        register(new MomentumBreakoutStrategy());
     }
 
     public static void register(Strategy strategy) {
