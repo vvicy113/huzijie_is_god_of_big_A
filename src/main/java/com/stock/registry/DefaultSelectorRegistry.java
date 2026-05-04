@@ -71,13 +71,40 @@ public class DefaultSelectorRegistry implements StockSelectorRegistry {
      */
     protected StockSelector createFromCode(int code) {
         return switch (code) {
-            case SelectorConstants.ALL_MAIN_BOARD -> new AllMainBoardSelector();
-            case SelectorConstants.VOL_20_1P5  -> new VolumeThresholdSelector(20, 1.5, code);
-            case SelectorConstants.VOL_10_2P0  -> new VolumeThresholdSelector(10, 2.0, code);
-            case SelectorConstants.CHANGE_M2_P10 -> new PriceChangeSelector(-2.0, 9.98, code);
-            case SelectorConstants.CHANGE_M5_P10 -> new PriceChangeSelector(-5.0, 10.0, code);
-            case SelectorConstants.MA_5_20  -> new MaAlignmentSelector(5, 20, code);
-            case SelectorConstants.MA_10_30 -> new MaAlignmentSelector(10, 30, code);
+            case SelectorConstants.ALL_MAIN_BOARD     -> new AllMainBoardSelector();
+            case SelectorConstants.VOL_20_1P5          -> new VolumeThresholdSelector(20, 1.5, code);
+            case SelectorConstants.VOL_10_2P0          -> new VolumeThresholdSelector(10, 2.0, code);
+            case SelectorConstants.CHANGE_M2_P10       -> new PriceChangeSelector(-2.0, 9.98, code);
+            case SelectorConstants.CHANGE_M5_P10       -> new PriceChangeSelector(-5.0, 10.0, code);
+            case SelectorConstants.MA_5_20             -> new MaAlignmentSelector(5, 20, code);
+            case SelectorConstants.MA_10_30            -> new MaAlignmentSelector(10, 30, code);
+            case SelectorConstants.NEW_HIGH_20         -> new NewHighSelector(20, code);
+            case SelectorConstants.NEW_HIGH_60         -> new NewHighSelector(60, code);
+            case SelectorConstants.CONSECUTIVE_RISE_3  -> new ConsecutiveRiseSelector(3, code);
+            case SelectorConstants.CONSECUTIVE_RISE_5  -> new ConsecutiveRiseSelector(5, code);
+            case SelectorConstants.AMPLITUDE_3_10      -> new AmplitudeSelector(3.0, 10.0, code);
+            case SelectorConstants.AMPLITUDE_5_15      -> new AmplitudeSelector(5.0, 15.0, code);
+            case SelectorConstants.MA_DIST_5_P3        -> new MaDistanceSelector(5, 3.0, code);
+            case SelectorConstants.MA_DIST_20_P5       -> new MaDistanceSelector(20, 5.0, code);
+            case SelectorConstants.GAP_UP_2            -> new GapUpSelector(2.0, code);
+            case SelectorConstants.AMOUNT_100M         -> new AmountThresholdSelector(100_000_000, code);
+            case SelectorConstants.AMOUNT_500M         -> new AmountThresholdSelector(500_000_000, code);
+            case SelectorConstants.SHRINK_VOL_20_0P5   -> new ShrinkVolumeSelector(20, 0.5, code);
+            case SelectorConstants.BOLL_LOWER_20_2     -> new BollingerLowerSelector(20, 2.0, code);
+            case SelectorConstants.BOLL_SQUEEZE_20_5   -> new BollingerSqueezeSelector(20, 2.0, 5.0, code);
+            case SelectorConstants.LOWER_SHADOW_2      -> new LowerShadowSelector(2.0, code);
+            case SelectorConstants.POS_RANK_LOW_20     -> new PositionRankSelector(20, 0, 30, code);
+            case SelectorConstants.POS_RANK_HIGH_20    -> new PositionRankSelector(20, 70, 100, code);
+            case SelectorConstants.MOMENTUM_10_5_30    -> new MomentumSelector(10, 5.0, 30.0, code);
+            case SelectorConstants.MOMENTUM_20_M10_0   -> new MomentumSelector(20, -10.0, 0.0, code);
+            case SelectorConstants.VOL_SPIKE_3         -> new VolumeSpikeSelector(3.0, code);
+            case SelectorConstants.VOL_SPIKE_5         -> new VolumeSpikeSelector(5.0, code);
+            case SelectorConstants.MA_CROSS_5_20       -> new MaGoldenCrossSelector(5, 20, code);
+            case SelectorConstants.MA_CROSS_10_30      -> new MaGoldenCrossSelector(10, 30, code);
+            case SelectorConstants.UP_TREND_20_60      -> new UpTrendRatioSelector(20, 0.6, code);
+            case SelectorConstants.UP_TREND_10_70      -> new UpTrendRatioSelector(10, 0.7, code);
+            case SelectorConstants.LIMIT_UP_9P5        -> new LimitUpSelector(9.5, code);
+            case SelectorConstants.BODY_RATIO_0P5      -> new BodyRatioSelector(0.5, code);
             default -> null;
         };
     }
