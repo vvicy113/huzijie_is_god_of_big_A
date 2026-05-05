@@ -1,5 +1,6 @@
 package com.stock.selector;
 
+import com.stock.constants.SelectorConstants;
 import com.stock.db.DatabaseManager;
 
 import java.sql.Connection;
@@ -83,4 +84,7 @@ public class MaAlignmentSelector implements StockSelector {
         }
         return result;
     }
+
+    @Override
+    public String getDesc() { return SelectorConstants.getDesc(code); }
 }

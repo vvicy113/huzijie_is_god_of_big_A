@@ -26,9 +26,10 @@ public class StockSelectorChain implements StockSelector {
     }
 
     @Override
-    public int getCode() {
-        return code;
-    }
+    public int getCode() { return code; }
+
+    @Override
+    public String getDesc() { return displayName; }
 
     @Override
     public List<String> select(List<String> candidates, LocalDate date) {

@@ -21,6 +21,12 @@ public interface StockSelector {
     int getCode();
 
     /**
+     * 返回人类可读的描述文本。
+     * 例如 "成交量筛选(20日均量 × 1.5倍)"、"全量主板"。
+     */
+    String getDesc();
+
+    /**
      * 对候选列表执行选择/过滤。
      *
      * @param candidates 候选股票代码列表，可能为空（首次调用时由起始选择器自行填充）

@@ -1,5 +1,6 @@
 package com.stock.comparator;
 
+import com.stock.constants.ComparatorConstants;
 import com.stock.db.DatabaseManager;
 
 import java.sql.Connection;
@@ -63,4 +64,7 @@ public class MaDistanceScorer implements StockComparator {
         }
         return result;
     }
+
+    @Override
+    public String getDesc() { return ComparatorConstants.getDesc(code); }
 }

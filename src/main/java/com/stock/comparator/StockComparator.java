@@ -15,6 +15,9 @@ public interface StockComparator {
     /** 返回唯一标识码，与 {@link com.stock.constants.ComparatorConstants} 对应 */
     int getCode();
 
+    /** 返回人类可读的描述文本 */
+    String getDesc();
+
     /**
      * 对候选股票列表批量打分。
      *

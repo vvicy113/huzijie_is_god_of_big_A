@@ -39,4 +39,7 @@ public class AllMainBoardSelector implements StockSelector {
         }
         return result;
     }
+
+    @Override
+    public String getDesc() { return SelectorConstants.getDesc(SelectorConstants.ALL_MAIN_BOARD); }
 }
