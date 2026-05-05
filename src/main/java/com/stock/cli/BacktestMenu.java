@@ -1,8 +1,10 @@
 package com.stock.cli;
 
 import com.stock.backtest.engine.BacktestEngine;
+import com.stock.backtest.report.ReportGenerator;
 import com.stock.backtest.strategy.Strategy;
 import com.stock.backtest.strategy.StrategyRegistry;
+import com.stock.model.BacktestResult;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -72,8 +74,10 @@ public class BacktestMenu {
         if (from == null) from = LocalDate.of(2020, 1, 1);
         if (to == null) to = LocalDate.now();
 
-        // 运行 Dry Run
-        engine.dryRun(strategy, from, to);
+        BacktestResult result = engine.run(strategy, from, to);
+        if (result != null) {
+            System.out.println(new ReportGenerator().generate(result));
+        }
 
         System.out.print("\n  按回车键返回主菜单...");
         scanner.nextLine();

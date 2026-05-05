@@ -64,6 +64,8 @@ public class BacktestEngine {
 
         DoubleRef cash = new DoubleRef(config.initialCapital());
         Map<String, Position> positions = new HashMap<>();
+        Map<String, LocalDate> buyDates = new HashMap<>();
+        Map<String, Double> lastPrices = new HashMap<>();
         List<TradeRecord> allTrades = new ArrayList<>();
         List<Double> equityValues = new ArrayList<>();
         List<LocalDate> equityDates = new ArrayList<>();
@@ -98,34 +100,47 @@ public class BacktestEngine {
             StrategyContext ctx = new StrategyContext(candidates, klineMap, positions, cash.get(), date, board);
             strategy.evaluate(ctx);
 
+            // 4. 风控检查：止损/止盈/持仓天数
+            applyRiskCheck(positions, buyDates, prices, date, board);
+
             if (board.isEmpty()) {
-                // 记录权益
                 equityDates.add(date);
                 equityValues.add(cash.get() + positions.values().stream()
                         .mapToDouble(p -> p.getShares() * p.getAvgCost()).sum());
                 continue;
             }
 
-            // 4. 执行交易
+            // 5. 执行交易
             List<TradeRecord> dayTrades;
             if (dry) {
                 dayTrades = List.of();
                 // Dry run: 仍更新持仓以展示信号
                 for (TradeSignal s : board.all()) {
-                    if (s.action() == TradeAction.BUY) positions.put(s.stockCode(),
-                            Position.builder().holding(true).shares(100).avgCost(0).totalCost(0).currentValue(0).build());
-                    else if (s.action() == TradeAction.SELL) positions.remove(s.stockCode());
+                    if (s.action() == TradeAction.BUY) {
+                        positions.put(s.stockCode(),
+                                Position.builder().holding(true).shares(100).avgCost(0).totalCost(0).currentValue(0).build());
+                        buyDates.put(s.stockCode(), date);
+                    } else if (s.action() == TradeAction.SELL) {
+                        positions.remove(s.stockCode());
+                        buyDates.remove(s.stockCode());
+                    }
                 }
             } else {
                 dayTrades = executor.execute(board, positions, cash, prices, date);
                 allTrades.addAll(dayTrades);
+                for (TradeSignal s : board.all()) {
+                    if (s.action() == TradeAction.BUY) buyDates.put(s.stockCode(), date);
+                    else if (s.action() == TradeAction.SELL) buyDates.remove(s.stockCode());
+                }
             }
 
             // 5. 记录权益
             double totalEquity = cash.get();
-            for (Position p : positions.values()) {
-                // 按当日价格更新市值
-                totalEquity += p.getShares() * p.getAvgCost(); // TODO: 用实际收盘价
+            for (var entry : positions.entrySet()) {
+                String code = entry.getKey();
+                Position p = entry.getValue();
+                Double close = prices.get(code);
+                totalEquity += p.getShares() * (close != null ? close : p.getAvgCost());
             }
             equityDates.add(date);
             equityValues.add(totalEquity);
@@ -145,18 +160,82 @@ public class BacktestEngine {
                             "", t.getBuyShares(), t.getBuyPrice());
                 }
             }
+            lastPrices = new HashMap<>(prices);
         }
 
-        // 收盘清仓
-        if (!positions.isEmpty()) {
-            // TODO: 按最后一日收盘价强制清仓
+        // 收盘强制清仓
+        if (!positions.isEmpty() && config.forceCloseAtEnd() && !lastPrices.isEmpty()) {
+            double commRate = config.commissionRate();
+            double minComm = config.minCommission();
+            double taxRate = config.stampTaxRate();
+            for (var it = positions.entrySet().iterator(); it.hasNext(); ) {
+                var entry = it.next();
+                String code = entry.getKey();
+                Position p = entry.getValue();
+                Double close = lastPrices.get(code);
+                if (close == null) close = p.getAvgCost();
+                double revenue = p.getShares() * close;
+                double commission = Math.max(revenue * commRate, minComm);
+                double stampTax = revenue * taxRate;
+                cash.add(revenue - commission - stampTax);
+                allTrades.add(TradeRecord.builder()
+                        .tradeIndex(allTrades.size() + 1)
+                        .buyDate(null).buyPrice(p.getAvgCost()).buyShares(p.getShares())
+                        .sellDate(dates.get(dates.size() - 1)).sellPrice(close)
+                        .sellCommission(commission + stampTax)
+                        .profit(revenue - commission - stampTax - p.getTotalCost()).build());
+                it.remove();
+            }
         }
 
-        System.out.printf("%n  最终资金: %.0f  交易次数: %d  持仓: %d%n",
-                cash.get(), allTrades.size(), positions.size());
+        System.out.printf("%n  最终资金: %.0f  交易次数: %d%n",
+                cash.get(), allTrades.size());
 
-        MetricsCalculator.calculate(config.initialCapital(), cash.get(), allTrades, equityValues, equityDates, config.riskFreeRate());
-        return null; // TODO: 返回完整 BacktestResult
+        var metrics = MetricsCalculator.calculate(config.initialCapital(), cash.get(),
+                allTrades, equityValues, equityDates, config.riskFreeRate());
+
+        return BacktestResult.builder()
+                .stockCode("多股票").strategyName(strategy.getName())
+                .metrics(metrics).trades(allTrades)
+                .equityCurveDates(equityDates).equityCurveValues(equityValues)
+                .build();
+    }
+
+    /** 风控检查：遍历持仓，对触发止损/止盈/超期的股票添加 SELL 信号 */
+    private void applyRiskCheck(Map<String, Position> positions, Map<String, LocalDate> buyDates,
+                                Map<String, Double> prices, LocalDate date, SignalBoard board) {
+        if (!config.stopLossEnabled() && !config.takeProfitEnabled() && !config.maxHoldingDaysEnabled())
+            return;
+
+        for (var entry : positions.entrySet()) {
+            String code = entry.getKey();
+            Position pos = entry.getValue();
+            Double close = prices.get(code);
+            if (close == null || close <= 0) continue;
+
+            LocalDate buyDate = buyDates.get(code);
+            boolean sell = false;
+
+            // 止损
+            if (config.stopLossEnabled()) {
+                double loss = (pos.getAvgCost() - close) / pos.getAvgCost() * 100;
+                if (loss >= config.stopLossPct()) sell = true;
+            }
+            // 止盈
+            if (!sell && config.takeProfitEnabled()) {
+                double profit = (close - pos.getAvgCost()) / pos.getAvgCost() * 100;
+                if (profit >= config.takeProfitPct()) sell = true;
+            }
+            // 持仓天数
+            if (!sell && config.maxHoldingDaysEnabled() && buyDate != null) {
+                long days = date.toEpochDay() - buyDate.toEpochDay();
+                if (days >= config.maxHoldingDays()) sell = true;
+            }
+
+            if (sell) {
+                board.add(new TradeSignal(code, TradeAction.SELL, -1));
+            }
+        }
     }
 
     private List<LocalDate> getTradingDates(LocalDate from, LocalDate to) {
