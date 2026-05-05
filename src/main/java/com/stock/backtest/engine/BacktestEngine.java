@@ -172,12 +172,16 @@ public class BacktestEngine {
                 double commission = Math.max(revenue * commRate, minComm);
                 double stampTax = revenue * taxRate;
                 cash.add(revenue - commission - stampTax);
+                LocalDate buyDt = buyDates.get(code);
+                long holdDays = buyDt != null ? dates.get(dates.size() - 1).toEpochDay() - buyDt.toEpochDay() : 0;
                 allTrades.add(TradeRecord.builder()
                         .tradeIndex(allTrades.size() + 1)
-                        .buyDate(null).buyPrice(p.getAvgCost()).buyShares(p.getShares())
+                        .buyDate(buyDt).buyPrice(p.getAvgCost()).buyShares(p.getShares())
                         .sellDate(dates.get(dates.size() - 1)).sellPrice(close)
                         .sellCommission(commission + stampTax)
-                        .profit(revenue - commission - stampTax - p.getTotalCost()).build());
+                        .profit(revenue - commission - stampTax - p.getTotalCost())
+                        .profitPercent((revenue - commission - stampTax - p.getTotalCost()) / p.getTotalCost() * 100)
+                        .holdingDays((int) holdDays).build());
                 it.remove();
             }
         }
