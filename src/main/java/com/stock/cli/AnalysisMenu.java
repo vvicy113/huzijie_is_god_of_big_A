@@ -13,55 +13,25 @@ import java.util.*;
 public class AnalysisMenu {
 
     private static final Logger log = LoggerFactory.getLogger(AnalysisMenu.class);
+    private final RelationAnalyzer analyzer = new RelationAnalyzer();
+    private final LlmReportService llmService = new LlmReportService();
 
-    private final Scanner scanner;
-    private final RelationAnalyzer analyzer;
-    private final LlmReportService llmService;
-
-    public AnalysisMenu(Scanner scanner) {
-        this.scanner = scanner;
-        this.analyzer = new RelationAnalyzer();
-        this.llmService = new LlmReportService();
-    }
-
-    public void show() {
-        log.info("\n  ══════════════ 股票关联分析 ══════════════");
-
-        log.info("  请输入主分析股票代码（如 600519）:");
-        System.out.print("  > ");
-        String primaryCode = scanner.nextLine().trim();
-        if (primaryCode.isEmpty()) { log.warn("  股票代码不能为空。"); return; }
-
-        log.info("  请输入对比股票代码，多个用逗号分隔（如 000858,002304,600809）:");
-        System.out.print("  > ");
-        String compareInput = scanner.nextLine().trim();
-        if (compareInput.isEmpty()) { log.warn("  至少需要一只对比股票。"); return; }
-
-        List<String> compareCodes = Arrays.stream(compareInput.split(","))
-                .map(String::trim).filter(s -> !s.isEmpty()).toList();
-
-        log.info("  正在联网抓取数据（可能需要几秒钟）...");
-        StockRelationReport report = analyzer.analyze(primaryCode, compareCodes);
-        printReport(report);
-
-        if (LlmConfig.isConfigured()) {
-            log.info("  正在生成AI综合分析...");
-            String llmAnalysis = llmService.analyze(report);
-            if (llmAnalysis != null && !llmAnalysis.isBlank()) {
-                log.info("  ───────────────────────────────────────────────────");
-                log.info("  [AI 综合分析]");
-                log.info("  {}", llmAnalysis.trim());
-                log.info("  ───────────────────────────────────────────────────");
-            } else {
-                log.warn("  [提示] AI分析暂不可用，已展示量化指标报告。");
-            }
-        } else {
-            log.info("  [提示] 未配置大模型API Key，跳过AI综合分析。");
-            log.info("  如需启用，请在 src/main/resources/config.properties 中配置 anthropic.api.key。");
+    public void runAuto(RunConfig config) {
+        String primary = config.primaryCode();
+        String compares = config.compareCodes();
+        if (primary.isEmpty() || compares.isEmpty()) {
+            log.warn("分析模式需要配置 analysis.primaryCode 和 analysis.compareCodes");
+            return;
         }
-
-        System.out.print("  按回车键返回主菜单...");
-        scanner.nextLine();
+        List<String> compareCodes = Arrays.stream(compares.split(","))
+                .map(String::trim).filter(s -> !s.isEmpty()).toList();
+        log.info("正在联网抓取数据...");
+        StockRelationReport report = analyzer.analyze(primary, compareCodes);
+        printReport(report);
+        if (LlmConfig.isConfigured()) {
+            String llm = llmService.analyze(report);
+            if (llm != null) log.info("[AI 综合分析]\n  {}", llm.trim());
+        }
     }
 
     private void printReport(StockRelationReport report) {
@@ -72,7 +42,7 @@ public class AnalysisMenu {
         log.info("{}", sep);
         log.info("  股票关联分析报告");
         log.info("{}", sep);
-        log.info("  主股票: {}({})  {:.2f}元", primary.getName(), primary.getCode(), primary.getCurrentPrice());
+        log.info("  主股票: {}({})  {}", primary.getName(), primary.getCode(), String.format("%.2f元", primary.getCurrentPrice()));
         log.info("{}", sep);
         log.info("  [行业板块]");
         log.info("  主股票行业: {}", report.getPrimaryIndustry());
@@ -128,24 +98,5 @@ public class AnalysisMenu {
         log.info("  [综合结论]");
         log.info("  {}", report.getSummary());
         log.info("{}", sep);
-    }
-
-    /** 自动模式 */
-    public void runAuto(RunConfig config) {
-        String primary = config.primaryCode();
-        String compares = config.compareCodes();
-        if (primary.isEmpty() || compares.isEmpty()) {
-            log.warn("分析模式需要配置 analysis.primaryCode 和 analysis.compareCodes");
-            return;
-        }
-        List<String> compareCodes = Arrays.stream(compares.split(","))
-                .map(String::trim).filter(s -> !s.isEmpty()).toList();
-        log.info("正在联网抓取数据...");
-        StockRelationReport report = analyzer.analyze(primary, compareCodes);
-        printReport(report);
-        if (LlmConfig.isConfigured()) {
-            String llm = llmService.analyze(report);
-            if (llm != null) log.info("[AI 综合分析]\n  {}", llm.trim());
-        }
     }
 }
