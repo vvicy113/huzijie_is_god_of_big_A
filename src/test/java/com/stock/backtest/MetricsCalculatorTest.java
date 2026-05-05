@@ -64,7 +64,7 @@ class MetricsCalculatorTest {
         }
 
         PerformanceMetrics metrics = MetricsCalculator.calculate(
-                100000, 104200, trades, equity, dates);
+                100000, 104200, trades, equity, dates, 0.02);
 
         assertEquals(2, metrics.getTotalTrades());
         assertEquals(1, metrics.getWinningTrades());
@@ -82,7 +82,7 @@ class MetricsCalculatorTest {
                 LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 2));
 
         PerformanceMetrics metrics = MetricsCalculator.calculate(
-                100000, 100000, trades, equity, dates);
+                100000, 100000, trades, equity, dates, 0.02);
 
         assertEquals(0, metrics.getTotalTrades());
         assertEquals(0.0, metrics.getTotalReturn());

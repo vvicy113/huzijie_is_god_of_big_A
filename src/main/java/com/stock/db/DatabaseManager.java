@@ -70,6 +70,20 @@ public class DatabaseManager {
                 ps.execute();
             }
 
+            // 股票元信息表
+            String infoSql = """
+                    CREATE TABLE IF NOT EXISTS stock_info (
+                        stock_code TEXT PRIMARY KEY,
+                        name       TEXT NOT NULL,
+                        market     TEXT,
+                        industry   TEXT,
+                        area       TEXT
+                    ) WITHOUT ROWID
+                    """;
+            try (PreparedStatement ps = conn.prepareStatement(infoSql)) {
+                ps.execute();
+            }
+
         } catch (SQLException e) {
             throw new RuntimeException("数据库初始化失败", e);
         }

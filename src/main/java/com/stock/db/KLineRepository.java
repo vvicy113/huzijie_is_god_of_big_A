@@ -1,6 +1,7 @@
 package com.stock.db;
 
 import com.stock.model.KLine;
+import com.stock.model.StockInfo;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -92,6 +93,21 @@ public class KLineRepository {
         } catch (SQLException e) {
             return 0;
         }
+    }
+
+    /** 查询股票元信息 */
+    public StockInfo findStockInfo(String stockCode) {
+        String sql = "SELECT stock_code, name, market, industry, area FROM stock_info WHERE stock_code = ?";
+        try (Connection conn = db.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, stockCode);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return StockInfo.builder()
+                        .code(rs.getString("stock_code")).name(rs.getString("name"))
+                        .market(rs.getString("market")).build();
+            }
+        } catch (SQLException e) { /* ignore */ }
+        return null;
     }
 
     public boolean exists(String stockCode) {

@@ -150,7 +150,53 @@ public class CsvImporter {
         log.info("导入完成！成功: {} 文件, 失败: {} 文件, 总行数: {}, 耗时: {}秒",
                 successFiles, failedFiles, totalRows, elapsed);
 
+        // 导入股票元信息
+        int infoCount = importStockInfo();
+        log.info("股票元信息导入: {} 条", infoCount);
+
         return new ImportResult(successFiles, failedFiles, totalRows);
+    }
+
+    /** 将 股票列表.csv 中的 sh/sz 主板股票信息写入 stock_info 表 */
+    private int importStockInfo() {
+        if (!Files.exists(stockListFile)) return 0;
+
+        String sql = "INSERT OR REPLACE INTO stock_info (stock_code, name, market, industry, area) VALUES (?,?,?,?,?)";
+        int count = 0;
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            try (BufferedReader br = new BufferedReader(
+                    new InputStreamReader(new FileInputStream(stockListFile.toFile()), StandardCharsets.UTF_8));
+                 CSVReader reader = new CSVReaderBuilder(br).build()) {
+
+                reader.readNext(); // skip header
+                String[] fields;
+                // [0]=code, [1]=symbol, [2]=name, [3]=area, [4]=industry, [5]=cnspell, [6]=market...
+                while ((fields = reader.readNext()) != null) {
+                    if (fields.length < 7) continue;
+                    String code = unquote(fields[0]);
+                    String name = unquote(fields[2]);
+                    String area = unquote(fields[3]);
+                    String industry = unquote(fields[4]);
+                    String market = unquote(fields[6]);
+
+                    if (!"主板".equals(market)) continue;
+                    if (!code.endsWith(".SH") && !code.endsWith(".SZ")) continue;
+
+                    ps.setString(1, code.substring(0, 6));
+                    ps.setString(2, name);
+                    ps.setString(3, code.endsWith(".SH") ? "SH" : "SZ");
+                    ps.setString(4, industry);
+                    ps.setString(5, area);
+                    ps.executeUpdate();
+                    count++;
+                }
+            }
+        } catch (Exception e) {
+            log.error("导入股票元信息失败: {}", e.getMessage());
+        }
+        return count;
     }
 
     /**
