@@ -2,8 +2,6 @@ package com.stock.config;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.Properties;
 
@@ -58,16 +56,13 @@ public class RunConfig {
                 .build();
     }
 
-    /** 从文件加载，文件不存在时返回默认配置 */
-    public static RunConfig load(Path path) {
+    /** 从输入流加载 */
+    public static RunConfig load(InputStream in) {
         Properties p = new Properties();
-        if (Files.exists(path)) {
-            try (InputStream in = Files.newInputStream(path);
-                 java.io.Reader reader = new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8)) {
-                p.load(reader);
-            } catch (IOException e) {
-                throw new RuntimeException("读取运行配置失败: " + path, e);
-            }
+        try (java.io.Reader reader = new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8)) {
+            p.load(reader);
+        } catch (IOException e) {
+            throw new RuntimeException("读取运行配置失败", e);
         }
         return new RunConfig(p);
     }
