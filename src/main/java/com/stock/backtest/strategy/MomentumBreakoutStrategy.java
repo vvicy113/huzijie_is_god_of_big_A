@@ -7,81 +7,84 @@ import com.stock.model.TradeAction;
 import com.stock.registry.DefaultSelectorRegistry;
 import com.stock.selector.StockSelector;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
- * 动量突破策略——第一个短线策略原型。
+ * 动量突破策略——参数化短线策略。
  * <p>
- * 选股：全量主板 → 20日放量1.5倍 → 均线多头(5,20)
- * 打分：动量10日(50%) + 量比20日(30%) + 均线乖离5日(20%)
- * 买卖：score > 60 且未持仓 → BUY；已持仓但不再符合选股条件 → SELL
+ * 选股链、打分权重、买入阈值均可通过构造函数配置，
+ * 在 StrategyRegistry 中用不同参数注册即可得到不同策略变体。
  */
 public class MomentumBreakoutStrategy implements Strategy {
 
-    private static final String NAME = "动量突破";
-    private static final double BUY_THRESHOLD = 60.0;
-
+    private final String name;
     private final StockSelector selector;
     private final StockComparator comparator;
+    private final double buyThreshold;
 
-    public MomentumBreakoutStrategy() {
-        // 选股链
-        DefaultSelectorRegistry reg = new DefaultSelectorRegistry("动量突破选股");
-        reg.register(SelectorConstants.ALL_MAIN_BOARD);
-        reg.register(SelectorConstants.VOL_20_1P5);
-        reg.register(SelectorConstants.MA_5_20);
+    /**
+     * @param name          策略名称
+     * @param selectorCodes 选股器 code 列表（按顺序执行）
+     * @param scorerCodes   打分器 code 列表
+     * @param scorerWeights 对应权重（与 scorerCodes 一一对应，和必须为1.0）
+     * @param buyThreshold  买入分数阈值
+     */
+    public MomentumBreakoutStrategy(
+            String name,
+            int[] selectorCodes,
+            int[] scorerCodes,
+            double[] scorerWeights,
+            double buyThreshold) {
+
+        this.name = name;
+        this.buyThreshold = buyThreshold;
+
+        // 构建选股链
+        DefaultSelectorRegistry reg = new DefaultSelectorRegistry(name + "选股");
+        for (int code : selectorCodes) reg.register(code);
         this.selector = reg.build();
 
-        // 综合打分
+        // 构建综合打分器
+        Map<StockComparator, Double> scorerMap = new LinkedHashMap<>();
+        for (int i = 0; i < scorerCodes.length; i++) {
+            StockComparator sc = createScorer(scorerCodes[i]);
+            scorerMap.put(sc, scorerWeights[i]);
+        }
         this.comparator = new CompositeScorer(
-                ComparatorConstants.COMPOSITE_MOM_VOL, "动量+量比+均线",
-                Map.of(
-                        new MomentumScorer(10, ComparatorConstants.MOMENTUM_10), 0.5,
-                        new VolumeRatioScorer(20, ComparatorConstants.VOL_RATIO_20), 0.3,
-                        new MaDistanceScorer(5, ComparatorConstants.MA_DIST_5), 0.2
-                ));
+                ComparatorConstants.COMPOSITE_MOM_VOL, name + "打分", scorerMap);
     }
 
-    @Override
-    public String getName() {
-        return NAME;
-    }
-
-    @Override
-    public StockSelector getStockSelector() {
-        return selector;
-    }
-
-    @Override
-    public StockComparator getComparator() {
-        return comparator;
-    }
+    @Override public String getName() { return name; }
+    @Override public StockSelector getStockSelector() { return selector; }
+    @Override public StockComparator getComparator() { return comparator; }
 
     @Override
     public void evaluate(StrategyContext ctx) {
         List<String> candidates = ctx.candidates();
         if (candidates.isEmpty()) return;
 
-        // 批量打分
         Map<String, Double> scores = comparator.score(candidates, ctx.date());
 
         for (String code : candidates) {
             double score = scores.getOrDefault(code, 0.0);
-
             if (ctx.isHolding(code)) {
-                // 已持仓 → 仍符合条件则 HOLD，否则 SELL
-                if (score > BUY_THRESHOLD) {
-                    ctx.signal(code, TradeAction.HOLD, score);
-                } else {
-                    ctx.signal(code, TradeAction.SELL, 0);
-                }
-            } else {
-                // 未持仓 → 分数够高则 BUY
-                if (score > BUY_THRESHOLD) {
-                    ctx.signal(code, TradeAction.BUY, score);
-                }
+                ctx.signal(code, score > buyThreshold ? TradeAction.HOLD : TradeAction.SELL, score);
+            } else if (score > buyThreshold) {
+                ctx.signal(code, TradeAction.BUY, score);
             }
         }
+    }
+
+    private static StockComparator createScorer(int code) {
+        return switch (code) {
+            case ComparatorConstants.MOMENTUM_10 -> new MomentumScorer(10, code);
+            case ComparatorConstants.MOMENTUM_20 -> new MomentumScorer(20, code);
+            case ComparatorConstants.VOL_RATIO_5  -> new VolumeRatioScorer(5, code);
+            case ComparatorConstants.VOL_RATIO_20 -> new VolumeRatioScorer(20, code);
+            case ComparatorConstants.MA_DIST_5    -> new MaDistanceScorer(5, code);
+            case ComparatorConstants.MA_DIST_20   -> new MaDistanceScorer(20, code);
+            case ComparatorConstants.AMPLITUDE    -> new AmplitudeScorer(code);
+            default -> throw new IllegalArgumentException("不支持的打分器 code: " + code);
+        };
     }
 }
