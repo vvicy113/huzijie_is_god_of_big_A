@@ -141,3 +141,6 @@ docker-compose.override.yml
 # 运行配置文件（模板可提交）
 run.properties
 !run.properties.example
+
+# 日志输出
+log/

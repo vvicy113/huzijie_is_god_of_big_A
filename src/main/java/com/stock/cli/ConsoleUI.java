@@ -2,6 +2,7 @@ package com.stock.cli;
 
 import com.stock.config.RunConfig;
 import com.stock.db.ProjectPaths;
+import com.stock.log.LogSetup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +20,7 @@ public class ConsoleUI {
             return;
         }
         RunConfig config = RunConfig.load(configFile);
+        LogSetup.writeConfigSummary(config.mode(), config.strategyName());
         log.info("运行模式: {}  配置文件: {}", config.mode(), configFile);
 
         switch (config.mode().toLowerCase()) {
