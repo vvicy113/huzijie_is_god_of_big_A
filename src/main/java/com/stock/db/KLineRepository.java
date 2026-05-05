@@ -12,48 +12,71 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 日K线数据仓库。从 SQLite daily_kline 表读取。
+ * 日K线数据仓库。优先从缓存读取，缓存未命中时查 SQLite 并回写缓存。
  */
 public class KLineRepository {
 
+    private static volatile KLineCache globalCache = new NoopKLineCache();
+
     private final DatabaseManager db;
+    private final KLineCache cache;
+
+    /** 设置全局缓存（通常启动时由 App 调用一次） */
+    public static void setGlobalCache(KLineCache cache) {
+        globalCache = cache != null ? cache : new NoopKLineCache();
+    }
 
     public KLineRepository() {
         this.db = DatabaseManager.getInstance();
+        this.cache = globalCache;
     }
 
-    /**
-     * 按股票代码查询全部日K线，按日期升序排列。
-     */
     public List<KLine> findByStockCode(String stockCode) {
         return findByStockCode(stockCode, null, null);
     }
 
-    /**
-     * 按股票代码 + 日期范围查询日K线。from/to 为 null 表示不限制。
-     */
     public List<KLine> findByStockCode(String stockCode, LocalDate from, LocalDate to) {
-        List<KLine> result = new ArrayList<>();
-        StringBuilder sql = new StringBuilder(
-                "SELECT date, open, high, low, close, volume, amount " +
-                "FROM daily_kline WHERE stock_code = ?");
-        if (from != null) sql.append(" AND date >= ?");
-        if (to != null) sql.append(" AND date <= ?");
-        sql.append(" ORDER BY date ASC");
+        // 1. 先查缓存
+        if (cache.isAvailable()) {
+            List<KLine> all = cache.get(stockCode);
+            if (all != null) return filterByDate(all, from, to);
+        }
 
+        // 2. 缓存未命中，查SQLite
+        List<KLine> all = queryDb(stockCode);
+
+        // 3. 回写缓存
+        if (cache.isAvailable() && !all.isEmpty()) {
+            cache.put(stockCode, all);
+        }
+
+        return filterByDate(all, from, to);
+    }
+
+    private List<KLine> queryDb(String stockCode) {
+        List<KLine> result = new ArrayList<>();
+        String sql = "SELECT date, open, high, low, close, volume, amount " +
+                     "FROM daily_kline WHERE stock_code = ? ORDER BY date ASC";
         try (Connection conn = db.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
-            int idx = 1;
-            ps.setString(idx++, stockCode);
-            if (from != null) ps.setString(idx++, from.toString());
-            if (to != null) ps.setString(idx++, to.toString());
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, stockCode);
             try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    result.add(rowToKLine(rs));
-                }
+                while (rs.next()) result.add(rowToKLine(rs));
             }
         } catch (SQLException e) {
             throw new RuntimeException("查询K线数据失败: " + stockCode, e);
+        }
+        return result;
+    }
+
+    /** 在内存中过滤日期范围 */
+    private List<KLine> filterByDate(List<KLine> all, LocalDate from, LocalDate to) {
+        if (from == null && to == null) return all;
+        List<KLine> result = new ArrayList<>();
+        for (KLine k : all) {
+            if (from != null && k.getDate().isBefore(from)) continue;
+            if (to != null && k.getDate().isAfter(to)) continue;
+            result.add(k);
         }
         return result;
     }
