@@ -24,8 +24,10 @@ public final class ComparatorConstants {
     public static final int MA_DIST_5 = 701;
     public static final int MA_DIST_20 = 702;
 
-    // ======== 8xx: 振幅 ========
+    // ======== 8xx: 振幅 / 趋势强度 ========
     public static final int AMPLITUDE = 801;
+    public static final int TREND_STRENGTH_10 = 802;
+    public static final int TREND_STRENGTH_20 = 803;
 
     // ======== 9xx: 综合 ========
     public static final int COMPOSITE_MOM_VOL = 901;
@@ -41,6 +43,8 @@ public final class ComparatorConstants {
         DESCS.put(MA_DIST_5, "5日乖离打分");
         DESCS.put(MA_DIST_20, "20日乖离打分");
         DESCS.put(AMPLITUDE, "振幅打分");
+        DESCS.put(TREND_STRENGTH_10, "趋势强度打分(10日)");
+        DESCS.put(TREND_STRENGTH_20, "趋势强度打分(20日)");
         DESCS.put(COMPOSITE_MOM_VOL, "综合打分(动量+量比)");
     }
 

@@ -83,7 +83,9 @@ public class MomentumBreakoutStrategy implements Strategy {
             case ComparatorConstants.VOL_RATIO_20 -> new VolumeRatioScorer(20, code);
             case ComparatorConstants.MA_DIST_5    -> new MaDistanceScorer(5, code);
             case ComparatorConstants.MA_DIST_20   -> new MaDistanceScorer(20, code);
-            case ComparatorConstants.AMPLITUDE    -> new AmplitudeScorer(code);
+            case ComparatorConstants.AMPLITUDE         -> new AmplitudeScorer(code);
+            case ComparatorConstants.TREND_STRENGTH_10 -> new TrendStrengthScorer(10, code);
+            case ComparatorConstants.TREND_STRENGTH_20 -> new TrendStrengthScorer(20, code);
             default -> throw new IllegalArgumentException("不支持的打分器 code: " + code);
         };
     }
