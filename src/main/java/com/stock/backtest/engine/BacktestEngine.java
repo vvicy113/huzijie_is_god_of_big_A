@@ -152,8 +152,10 @@ public class BacktestEngine {
                 if (s.action() == TradeAction.BUY) buys++;
                 if (s.action() == TradeAction.SELL) sells++;
             }
-            log.info("{}  候选:{}  买:{}  卖:{}  持仓:{}  资金:{}",
-                    date, candidates.size(), buys, sells, positions.size(), (int) cash.get());
+            double marketValue = totalEquity - cash.get();
+            log.info("{}  候选:{}  买:{}  卖:{}  持仓:{}  资金:{}  市值:{}  总:{}",
+                    date, candidates.size(), buys, sells, positions.size(),
+                    (int) cash.get(), (int) marketValue, (int) totalEquity);
             lastPrices = new HashMap<>(prices);
         }
 
