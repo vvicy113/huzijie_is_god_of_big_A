@@ -2,6 +2,8 @@ package com.stock.db;
 
 import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -17,6 +19,7 @@ import java.util.*;
  */
 public class CsvImporter {
 
+    private static final Logger log = LoggerFactory.getLogger(CsvImporter.class);
     private static final String CSV_DIR = "csv/日k";
     private static final String STOCK_LIST_FILE = "csv/股票列表.csv";
     private static final int BATCH_SIZE = 5000;
@@ -40,7 +43,7 @@ public class CsvImporter {
     public ImportResult importAll() throws IOException {
         // 1. 加载股票列表，筛选 sh/sz 主板股票
         Set<String> allowedCodes = loadMainBoardStocks();
-        System.out.println("  股票列表中共 " + allowedCodes.size() + " 只 sh/sz 主板A股");
+        log.info("股票列表中共 {} 只 sh/sz 主板A股", allowedCodes.size());
 
         // 2. 扫描日k目录
         Path dir = csvDir;
@@ -71,17 +74,15 @@ public class CsvImporter {
             }
         }
 
-        System.out.println("  日k目录共 " + csvFiles.size() + " 个CSV文件");
-        System.out.println("  符合条件: " + filtered.size() + " 个 (sh/sz主板)，跳过: " + skipped + " 个");
-        System.out.println();
+        log.info("日k目录共 {} 个CSV文件", csvFiles.size());
+        log.info("符合条件: {} 个 (sh/sz主板)，跳过: {} 个", filtered.size(), skipped);
 
         if (filtered.isEmpty()) {
-            System.out.println("  没有找到符合条件的CSV文件。");
+            log.warn("没有找到符合条件的CSV文件");
             return new ImportResult(0, 0, 0);
         }
 
-        // 4. 执行导入
-        System.out.println("  开始导入...");
+        log.info("开始导入...");
 
         int totalFiles = filtered.size();
         int successFiles = 0;
@@ -119,13 +120,13 @@ public class CsvImporter {
                         }
                     } catch (Exception e) {
                         failedFiles++;
-                        System.err.println("    导入失败: " + fileName + " - " + e.getMessage());
+                        log.error("导入失败: {} - {}", fileName, e.getMessage());
                     }
 
                     if ((i + 1) % 100 == 0) {
                         long elapsed = System.currentTimeMillis() - startTime;
                         double pct = (i + 1) * 100.0 / totalFiles;
-                        System.out.printf("  进度: %d/%d (%.1f%%), 已用时: %.1f秒, 已导入: %d行%n",
+                        log.info("进度: {}/{} ({:.1f}%), 已用时: {:.1f}秒, 已导入: {}行",
                                 i + 1, totalFiles, pct, elapsed / 1000.0, totalRows);
                     }
                 }
@@ -146,7 +147,7 @@ public class CsvImporter {
         }
 
         long elapsed = (System.currentTimeMillis() - startTime) / 1000;
-        System.out.printf("%n  导入完成！成功: %d 文件, 失败: %d 文件, 总行数: %d, 耗时: %d秒%n",
+        log.info("导入完成！成功: {} 文件, 失败: {} 文件, 总行数: {}, 耗时: {}秒",
                 successFiles, failedFiles, totalRows, elapsed);
 
         return new ImportResult(successFiles, failedFiles, totalRows);

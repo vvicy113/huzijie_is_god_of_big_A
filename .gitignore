@@ -137,3 +137,7 @@ docker-compose.override.yml
 
 # db文件
 *.db
+
+# 运行配置文件（模板可提交）
+run.properties
+!run.properties.example

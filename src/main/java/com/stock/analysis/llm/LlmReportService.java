@@ -8,6 +8,9 @@ import com.stock.model.LeadLagResult;
 import com.stock.model.StockInfo;
 import com.stock.model.StockRelationReport;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -22,6 +25,7 @@ import java.util.Map;
  */
 public class LlmReportService {
 
+    private static final Logger log = LoggerFactory.getLogger(LlmReportService.class);
     private static final String API_URL = "https://api.anthropic.com/v1/messages";
     private static final String API_VERSION = "2023-06-01";
     private static final int TIMEOUT_SECONDS = 60;
@@ -73,10 +77,10 @@ public class LlmReportService {
                     return content.get(0).path("text").asText();
                 }
             } else {
-                System.err.println("  [LLM] API 调用失败: HTTP " + response.statusCode());
+                log.error("API 调用失败: HTTP {}", response.statusCode());
             }
         } catch (IOException | InterruptedException e) {
-            System.err.println("  [LLM] 调用异常: " + e.getMessage());
+            log.error("调用异常", e);
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }

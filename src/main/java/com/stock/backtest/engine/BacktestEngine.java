@@ -9,6 +9,8 @@ import com.stock.backtest.strategy.*;
 import com.stock.config.BacktestConfig;
 import com.stock.db.KLineRepository;
 import com.stock.model.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -21,6 +23,8 @@ import java.util.*;
  * TradeExecutor 可替换（默认等分资金）。
  */
 public class BacktestEngine {
+
+    private static final Logger log = LoggerFactory.getLogger(BacktestEngine.class);
 
     private final CsvDataLoader loader;
     private final KLineRepository repo;
@@ -58,7 +62,7 @@ public class BacktestEngine {
 
         List<LocalDate> dates = getTradingDates(from, to);
         if (dates.isEmpty()) {
-            System.out.println("  指定日期范围内无交易日数据。");
+            log.warn("指定日期范围内无交易日数据");
             return null;
         }
 
@@ -70,11 +74,8 @@ public class BacktestEngine {
         List<Double> equityValues = new ArrayList<>();
         List<LocalDate> equityDates = new ArrayList<>();
 
-        System.out.println("\n  策略: " + strategy.getName());
-        System.out.println("  执行器: " + executor.getName());
-        System.out.println("  日期: " + from + " ~ " + to + " (" + dates.size() + "个交易日)");
-        if (dry) System.out.println("  模式: Dry Run（不执行真实交易）");
-        System.out.println();
+        log.info("策略: {}  执行器: {}  日期: {} ~ {} ({}个交易日)",
+                strategy.getName(), executor.getName(), from, to, dates.size());
 
         for (LocalDate date : dates) {
             // 1. 选股
@@ -151,15 +152,8 @@ public class BacktestEngine {
                 if (s.action() == TradeAction.BUY) buys++;
                 if (s.action() == TradeAction.SELL) sells++;
             }
-            System.out.printf("  %s  候选:%-4d  买:%-3d  卖:%-3d  持仓:%-2d  资金:%.0f%n",
-                    date, candidates.size(), buys, sells, positions.size(), cash.get());
-            if (!dry && !dayTrades.isEmpty()) {
-                for (TradeRecord t : dayTrades) {
-                    System.out.printf("    %-6s %-4s %d股 @%.2f%n",
-                            t.getBuyDate() != null ? "BUY" : "SELL",
-                            "", t.getBuyShares(), t.getBuyPrice());
-                }
-            }
+            log.info("{}  候选:{}  买:{}  卖:{}  持仓:{}  资金:{}",
+                    date, candidates.size(), buys, sells, positions.size(), (int) cash.get());
             lastPrices = new HashMap<>(prices);
         }
 
@@ -188,8 +182,7 @@ public class BacktestEngine {
             }
         }
 
-        System.out.printf("%n  最终资金: %.0f  交易次数: %d%n",
-                cash.get(), allTrades.size());
+        log.info("最终资金: {}  交易次数: {}", (int) cash.get(), allTrades.size());
 
         var metrics = MetricsCalculator.calculate(config.initialCapital(), cash.get(),
                 allTrades, equityValues, equityDates, config.riskFreeRate());
