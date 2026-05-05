@@ -3,6 +3,7 @@ package com.stock.config;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.Properties;
 
 /**
@@ -19,6 +20,10 @@ public class RunConfig {
     private final String primaryCode;
     private final String compareCodes;
     private final String importYear;
+    private final int[] selectorCodes;
+    private final int[] scorerCodes;
+    private final double[] scorerWeights;
+    private final double buyThreshold;
     private final BacktestConfig backtest;
 
     // mode 数字→名称映射
@@ -28,11 +33,29 @@ public class RunConfig {
         int modeNum = parseInt(p, "mode", 1);
         this.mode = (modeNum >= 1 && modeNum < MODES.length) ? MODES[modeNum] : "backtest";
 
-        // 策略：数字索引 → 名称
-        int strategyIdx = parseInt(p, "backtest.strategy", 1);
-        var strategyNames = com.stock.backtest.strategy.StrategyRegistry.getStrategyNames();
-        this.strategyName = (strategyIdx >= 1 && strategyIdx <= strategyNames.size())
-                ? strategyNames.get(strategyIdx - 1) : "";
+        // 策略：如果配置了 selector.codes 则用可配置策略，否则用 strategy 序号
+        String selCodesStr = p.getProperty("backtest.selector.codes", "");
+        if (!selCodesStr.isBlank()) {
+            this.selectorCodes = parseIntArray(selCodesStr);
+            this.scorerCodes = parseIntArray(p.getProperty("backtest.scorer.codes", "501,601"));
+            this.scorerWeights = parseDoubleArray(p.getProperty("backtest.scorer.weights", "1.0"));
+            this.buyThreshold = parseDouble(p, "backtest.buyThreshold", 60);
+            // 用选股器编码作为策略标识
+            StringBuilder sb = new StringBuilder("config[");
+            for (int c : selectorCodes) sb.append(c).append(",");
+            sb.setLength(sb.length() - 1);
+            sb.append("]");
+            this.strategyName = sb.toString();
+        } else {
+            this.selectorCodes = null;
+            this.scorerCodes = null;
+            this.scorerWeights = null;
+            this.buyThreshold = 60;
+            int strategyIdx = parseInt(p, "backtest.strategy", 1);
+            var strategyNames = com.stock.backtest.strategy.StrategyRegistry.getStrategyNames();
+            this.strategyName = (strategyIdx >= 1 && strategyIdx <= strategyNames.size())
+                    ? strategyNames.get(strategyIdx - 1) : "";
+        }
         this.dateFrom = parseDate(p.getProperty("backtest.date.from"));
         this.dateTo = parseDate(p.getProperty("backtest.date.to"));
         this.primaryCode = p.getProperty("analysis.primaryCode", "");
@@ -75,6 +98,11 @@ public class RunConfig {
     public String primaryCode() { return primaryCode; }
     public String compareCodes() { return compareCodes; }
     public String importYear() { return importYear; }
+    public int[] selectorCodes() { return selectorCodes; }
+    public int[] scorerCodes() { return scorerCodes; }
+    public double[] scorerWeights() { return scorerWeights; }
+    public double buyThreshold() { return buyThreshold; }
+    public boolean isConfigurable() { return selectorCodes != null; }
     public BacktestConfig backtest() { return backtest; }
 
     // === Helper parsers ===
@@ -92,6 +120,16 @@ public class RunConfig {
     private static int parseInt(Properties p, String key, int def) {
         try { return Integer.parseInt(p.getProperty(key, String.valueOf(def))); }
         catch (NumberFormatException e) { return def; }
+    }
+
+    private static int[] parseIntArray(String s) {
+        return Arrays.stream(s.split(",")).map(String::trim)
+                .mapToInt(Integer::parseInt).toArray();
+    }
+
+    private static double[] parseDoubleArray(String s) {
+        return Arrays.stream(s.split(",")).map(String::trim)
+                .mapToDouble(Double::parseDouble).toArray();
     }
 
     private static boolean parseBool(Properties p, String key, boolean def) {
