@@ -47,7 +47,7 @@ public interface Strategy {
      * <p>
      * <b>何时不需要重写：</b>
      * <ul>
-     *   <li>策略完全无状态，所有决策仅依赖当天 ctx 内的数据（如 MomentumBreakoutStrategy）</li>
+     *   <li>策略完全无状态，所有决策仅依赖当天 ctx 内的数据（如 ConfigurableStrategy）</li>
      * </ul>
      * <p>
      * <b>实现示例：</b>
