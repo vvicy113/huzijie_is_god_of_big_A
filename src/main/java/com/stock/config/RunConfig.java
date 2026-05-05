@@ -23,9 +23,18 @@ public class RunConfig {
     private final String importYear;
     private final BacktestConfig backtest;
 
+    // mode 数字→名称映射
+    private static final String[] MODES = {"", "backtest", "analysis", "import", "stats"};
+
     private RunConfig(Properties p) {
-        this.mode = p.getProperty("mode", "backtest");
-        this.strategyName = p.getProperty("backtest.strategy", "");
+        int modeNum = parseInt(p, "mode", 1);
+        this.mode = (modeNum >= 1 && modeNum < MODES.length) ? MODES[modeNum] : "backtest";
+
+        // 策略：数字索引 → 名称
+        int strategyIdx = parseInt(p, "backtest.strategy", 1);
+        var strategyNames = com.stock.backtest.strategy.StrategyRegistry.getStrategyNames();
+        this.strategyName = (strategyIdx >= 1 && strategyIdx <= strategyNames.size())
+                ? strategyNames.get(strategyIdx - 1) : "";
         this.dateFrom = parseDate(p.getProperty("backtest.date.from"));
         this.dateTo = parseDate(p.getProperty("backtest.date.to"));
         this.primaryCode = p.getProperty("analysis.primaryCode", "");
